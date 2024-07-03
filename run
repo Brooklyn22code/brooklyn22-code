@@ -1,0 +1,161 @@
+import pygame, time, random
+
+pygame.font.init()
+
+WIDTH, HEIGHT = 900, 500
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('RUN!!!')
+
+player_vel = 5
+player_height = 30
+player_width = 30
+down_vel = 50
+wall_vel = 3.5
+bird_vel = 4
+wall_width = 50
+
+total_time = 0
+game_time = 0
+
+PLAYER_HIT = pygame.USEREVENT + 1
+
+score = 0
+
+walls = []
+birds = []
+low_jump = False
+
+score_font = pygame.font.SysFont('comicsans', 40)
+lose_font = pygame.font.SysFont('comicsans', 100)
+lose_text = lose_font.render('You lose!', 1, (255, 255, 0))
+high_jump_font = pygame.font.SysFont('comicsans', 20)
+
+high_jump = 1
+
+class Wall:
+    def __init__(self, x, y, width, height, new_score):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.new_score = new_score
+
+def draw(rect, walls, birds):
+    global score, high_jump
+    score_text = score_font.render('Your score is' + ' ' + str(score), 1, (0, 0, 255))
+    high_jump_text = high_jump_font.render('You have ' + str(high_jump) + ' high jumps', 1, (255, 0, 255))
+    
+    WIN.fill((255, 255, 255))  # Fill the screen with white
+    WIN.blit(score_text, (WIDTH/2 - score_text.get_width()/2, 10))
+    WIN.blit(high_jump_text, (WIDTH - high_jump_text.get_width(), 20))
+    pygame.draw.rect(WIN, (0, 0, 0), rect)  # Draw the player rectangle
+    for wall in walls:
+        pygame.draw.rect(WIN, (255, 0, 0), wall.rect)
+        wall.rect.x -= wall_vel
+        if wall.rect.x + wall.rect.width <= 0:
+            walls.remove(wall)
+        if rect.colliderect(wall.rect):
+            pygame.event.post(pygame.event.Event(PLAYER_HIT))
+        if wall.new_score and wall.rect.x + wall.rect.width < rect.x:
+            score += 1
+            wall.new_score = False
+            if low_jump:
+                high_jump += 1
+
+    for bird in birds:
+        pygame.draw.rect(WIN, (0, 255, 0), bird)
+        bird.x -= bird_vel
+        if bird.x <= 0:
+            birds.remove(bird)
+        if rect.colliderect(bird):
+            pygame.event.post(pygame.event.Event(PLAYER_HIT))
+
+    pygame.display.update()  # Update the display
+
+def main():
+    global total_time, game_time, high_jump, low_jump
+    clock = pygame.time.Clock()
+    run = True
+    jumpCount = 10
+    high_jump_count = 10
+    isjump = False
+    is_high_jump = False
+    
+    rect = pygame.Rect((0.5 * WIDTH) - player_width, HEIGHT - player_height, player_width, player_height)
+    
+    while run:
+        clock.tick(60)
+        wall_height = random.randint(100, 320)
+        if total_time > 0.1:
+            wall = Wall(WIDTH, HEIGHT - wall_height, wall_width, wall_height, True)
+            walls.append(wall)
+            total_time = 0
+            random_number = random.randint(1, 3)
+            if random_number > 1:
+                bird = pygame.Rect(WIDTH, random.randint(20, HEIGHT//2), 60, 30)
+                birds.append(bird)
+            else:
+                pass
+        
+        
+        start_time = time.time()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+            if event.type == PLAYER_HIT:
+                run = False
+                losing = True
+        
+        key_pressed = pygame.key.get_pressed()
+        if not isjump and not is_high_jump:
+            if key_pressed[pygame.K_SPACE]:
+                isjump = True
+                low_jump = True
+        if isjump:
+            if jumpCount >= -10:
+                neg = 1
+                if jumpCount < 0:
+                    neg = -1
+                rect.y -= (jumpCount ** 2) * 0.2 * neg
+                jumpCount -= 0.25
+            else:
+                isjump = False
+                jumpCount = 10
+
+        if not is_high_jump and not isjump and high_jump > 0:
+            if key_pressed[pygame.K_w]:
+                is_high_jump = True
+                high_jump -= 1
+        if is_high_jump:
+            if high_jump_count >= -10:
+                neg = 1
+                if high_jump_count < 0:
+                    neg = -1
+                rect.y -= (high_jump_count ** 2) * 0.12 * neg
+                high_jump_count -= 0.1
+            else:
+                is_high_jump = False
+                high_jump_count = 10
+        
+        if key_pressed[pygame.K_e]:
+            rect.y += down_vel
+            jumpCount = -10
+            high_jump_count = -10
+        
+        if rect.y > (HEIGHT - player_height):
+            rect.y = HEIGHT - player_height
+
+        draw(rect, walls, birds)
+        end_time = time.time()
+        total_time += end_time - start_time
+        game_time += total_time
+
+    while losing:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                losing = False
+                pygame.quit()
+        WIN.blit(lose_text, (WIDTH/2 - lose_text.get_width()/2, HEIGHT/2 - lose_text.get_height()/2))
+        pygame.display.update()
+
+if __name__ == '__main__':
+    main()
