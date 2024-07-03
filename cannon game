@@ -1,0 +1,150 @@
+import pygame
+import os
+import time
+import random as rd
+import math
+
+pygame.font.init()
+
+# Screen Dimensions
+HEIGHT = 500
+WIDTH = 900
+
+# Farmer Dimensions
+PLAYER_HEIGHT = 100
+PLAYER_WIDTH = 70
+
+spin = 0
+shot_FONT = pygame.font.SysFont('comicsans', 40)
+miss_FONT = shot_FONT = pygame.font.SysFont('comicsans', 40)
+player_vel = 2.5
+bomb = []
+bullet = []
+total_spin = 0
+shot = 0
+miss_shot = 0
+max_bullets = 4
+
+# Screen Setup
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('Practice')
+
+total_time = 0
+
+# Load Images
+try:
+    cannon = pygame.transform.scale(pygame.image.load(os.path.join('pygame practice', 'cannon.jpg')), (PLAYER_WIDTH, PLAYER_HEIGHT))
+    BACKGROUND = pygame.transform.scale(pygame.image.load(os.path.join('pygame practice', 'warbackground.jpg')), (WIDTH, HEIGHT))
+except pygame.error as e:
+    print(f"Failed to load images: {e}")
+    pygame.quit()
+    exit()
+
+
+def handle_move(key_pressed):
+    global spin
+    """Handle the movement of the player character."""
+    if key_pressed[pygame.K_a]:
+        spin += player_vel
+    if key_pressed[pygame.K_d]:
+        spin -= player_vel
+
+    if spin >= 360:
+        spin -= 360
+    if spin < 0:
+        spin += 360
+
+
+def handle_bullets(bullets, bombs):
+    global shot
+    for bullet in bullets:
+        bullet.x += bullet.x_speed
+        bullet.y += bullet.y_speed
+
+        if bullet.y < 0 or bullet.y > HEIGHT or bullet.x < 0 or bullet.x > WIDTH:
+            bullets.remove(bullet)
+        else:
+            for bomb in bombs:
+                if bullet.colliderect(bomb):
+                    bullets.remove(bullet)
+                    bombs.remove(bomb)
+                    shot += 1
+                    break
+
+
+def draw(square, bombs, bullets, shot):
+    """Draw the game elements on the screen."""
+    global miss_shot, spin
+    WIN.blit(BACKGROUND, (0, 0))
+    shot_text = shot_FONT.render("You got: " + str(shot) + ' shot', 1, (255, 255, 0))
+    WIN.blit(shot_text, (WIDTH/2 - shot_text.get_width() - 50, 10))
+    miss_text = miss_FONT.render('You miss: ' + str(miss_shot) + ' shot', 1, (255, 0, 0))
+    WIN.blit(miss_text, (WIDTH/2 + 50, 10))
+
+    # Rotate the cannon
+    rotated_cannon = pygame.transform.rotate(cannon, spin)
+    new_rect = rotated_cannon.get_rect(center=(square.x + PLAYER_WIDTH // 2, square.y + PLAYER_HEIGHT // 2))
+    WIN.blit(rotated_cannon, new_rect.topleft)
+
+    for bomb in bombs:
+        pygame.draw.rect(WIN, (0, 0, 0), bomb)
+        bomb.y += player_vel/2
+        if bomb.y > HEIGHT:
+            bombs.remove(bomb)
+            miss_shot += 1
+
+
+    for bullet in bullets:
+        pygame.draw.rect(WIN, (255, 0, 0), bullet)
+
+    pygame.display.update()
+
+
+def main():
+    """Main function to run the game loop."""
+    global total_time, spin
+    run = True
+    clock = pygame.time.Clock()
+    square = pygame.Rect(WIDTH // 2, HEIGHT - PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT)
+
+    class Bullet(pygame.Rect):
+        def __init__(self, x, y, width, height, x_speed, y_speed):
+            super().__init__(x, y, width, height)
+            self.x_speed = x_speed
+            self.y_speed = y_speed
+
+    while run:
+        clock.tick(60)
+        start_time = time.time()
+
+        if total_time > 0.15:
+            bomb_one = pygame.Rect(rd.randint(25, WIDTH - 75), 0, 30, 30)
+            bomb.append(bomb_one)
+            total_time = 0
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE and len(bullet) < max_bullets:
+                    angle_rad = spin * (3.14159 / 180)
+                    bullet_speed = 5
+                    x_speed = bullet_speed * -math.sin(angle_rad)
+                    y_speed = bullet_speed * -math.cos(angle_rad)
+                    bullet.append(Bullet(square.centerx, square.centery, 15, 15, x_speed, y_speed))
+
+        key_pressed = pygame.key.get_pressed()
+        handle_move(key_pressed)
+
+        handle_bullets(bullet, bomb)
+
+        draw(square, bomb, bullet, shot)
+
+        end_time = time.time()
+        total_time += end_time - start_time
+
+    pygame.quit()
+
+if __name__ == '__main__':    
+    main()
